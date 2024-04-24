@@ -1,0 +1,15 @@
+1. configEnv/index.js ✅
+2. db/connectDb.js ✅
+3. utils/apiError.util.js ✅
+4. utils/apiResponse.util.js ✅
+5. utils/asyncHandler.util.js ✅
+6. models/user.model.js ✅
+7. routes/user.route.js ✅
+8. middlewares/multer.middleware.js ✅
+9. middlewares/auth.middleware.js ✅
+10. utils/cloudinary.util.js ✅
+11. controller/user.controller.js = almost complete
+	registerUser ✅
+	loginUser ✅
+	logoutUser ✅
+	generateNewAccessToken ✅
