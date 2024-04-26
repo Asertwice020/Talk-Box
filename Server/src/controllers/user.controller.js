@@ -48,14 +48,13 @@ const registerUser = asyncHandler(async (req, res) => {
     // })
 
     // 1. VALIDATION - ALL FIELDS ARE REQUIRED
-    if (
-      [userName, fullName, email, password].some(
-        (field) => field?.trim() == "" && (field?.trim() == undefined)
-      )
-    ) {
+    const emptyFieldsValidation = [userName, fullName, email, password].some(field => !field || field.trim().length === 0)
+    console.log({emptyFieldsValidation})
+
+    if (emptyFieldsValidation) {
       throw new ApiError(
         406,
-        "All Fields Are Required! :: user.controller.js/registerUser",
+        "All Fields Are Required!",
         "1. TIP-1   2. TIP-2"
       );
     }
@@ -66,7 +65,8 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!userNameRegex.test(userName)) {
       throw new ApiError(
         400,
-        "Username should contain only letters, numbers, underscore, dot, dash! :: user.controller.js/registerUser",
+        // "Username should contain only letters, numbers, underscore, dot, dash! :: user.controller.js/registerUser",
+        "Invalid username",
         "1. TIP-1   2. TIP-2"
       );
     }
@@ -77,19 +77,20 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!fullNameRegex.test(fullName)) {
       throw new ApiError(
         400,
-        "Full-Name should contain only space, letters! :: user.controller.js/registerUser",
+        // "Full-Name should contain only space, letters! :: user.controller.js/registerUser",
+        "Invalid full name",
         "1. TIP-1   2. TIP-2"
       );
     }
 
     // 4. EMAIL VALIDATION
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    // if (!emailRegex.test(email) || !email || email.trim().length < 0) {
-    if (!email || !email.trim()) {
+    if (!email || email.trim().length < 0) {
       throw new ApiError(
         400,
-        "Email Field Can't Be Empty! :: user.controller.js/registerUser",
+        // "Email Field Can't Be Empty! :: user.controller.js/registerUser",
+        "Invalid email address",
         "1. TIP-1   2. TIP-2"
       );
     }
@@ -102,7 +103,8 @@ const registerUser = asyncHandler(async (req, res) => {
     if (existedUser) {
       throw new ApiError(
         409,
-        "User with this username or email already exists!  :: user.controller.js/registerUser",
+        // "User with this username or email already exists!  :: user.controller.js/registerUser",
+        "User with this username or email already exists!",
         "1. TIP-1   2. TIP-2"
       );
     }
@@ -130,7 +132,7 @@ const registerUser = asyncHandler(async (req, res) => {
     const avatar = await uploadToCloudinary(avatarLocalPath)
 
     if (!avatar) {
-      throw new ApiError(400, "Avatar is required!");
+      throw new ApiError(400, "Failed to upload your avatar on cloudinary!");
     }
 
     // 8. OBJECT CREATION IN DB
@@ -146,7 +148,7 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!user) {
       throw new ApiError(
         500,
-        "Something went wrong while registering the user in DB!!!",
+        "Failed to submit your details in DB!",
         "1. TIP-1  2. TIP-2"
       );
     }
@@ -161,7 +163,7 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!createdUser) {
       throw new ApiError(
         500,
-        "Something went wrong while registering the user in DB!!!",
+        "Failed to register yourself in DB!",
         "1. TIP-1  2. TIP-2"
       );
     }
@@ -220,7 +222,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     // 5. IF PASSWORD NOT MATCHED
     if (!isPasswordValid) {
-      throw new ApiError(401, "Invalid User Credentials!", "No Debugging Tips");
+      throw new ApiError(401, "Invalid Password!", "No Debugging Tips");
     }
 
     // 6. GENERATE ACCESS & REFRESH TOKENS
@@ -286,6 +288,67 @@ const logoutUser = asyncHandler(async (req, res) => {
     );
   }
 });
+
+const getAllUsers = asyncHandler( async (req, res) => {
+  try {
+    // LOG
+    // endpoint will look like: /api/users/all-users?search=sumit result: sumit.
+    // const users = req?.query?.search
+    // console.log(users);
+
+    if (!req?.query?.search) {
+      throw new ApiError(400, "You didn't pass anything to search!", "No Tip!");
+    }
+
+    const data = req.query.search && {
+      $or: [
+        { userName: { $regex: req.query.search, $options: "i" } },
+        { email: { $regex: req.query.search, $options: "i" } },
+      ],
+    };
+
+    if (!data) {
+      // LOG
+      console.log({ data });
+      throw new ApiError(
+        404,
+        "UNREADABLE OR NO DATA COMES IN USERNAME AND EMAIL!",
+        "No Tip!"
+      );
+    }
+
+    const users = await User.find(data).find({ _id: { $ne: req?.user?._id } });
+
+    // LOG
+    console.log({
+      dataUsername: data.$or.userName,
+      dataEmail: data.$or.email,
+      users,
+    });
+
+    if ( !users || users.length === 0) {
+      throw new ApiError(404, "No result found!", "No Tip!");
+    }
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          "Your Requested Thing Searched Successfully!",
+          users
+        )
+      );
+  } catch (error) {
+    throw new ApiError(
+      500,
+      error?.message || "Something went wrong while getting your search results!",
+      "NO Tips!",
+      error,
+      error?.stack
+    ) 
+  }
+})
 
 const generateNewAccessToken = asyncHandler(async (req, res) => {
   // first verify user's access token is expired, if yes, so verify user's refresh token through server, if it's match so run the method which you created for generating both tokens, so now user has both new tokens
@@ -392,4 +455,5 @@ export {
   logoutUser,
   generateNewAccessToken,
   changeCurrentPassword,
+  getAllUsers,
 };

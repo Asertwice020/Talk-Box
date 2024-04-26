@@ -28,9 +28,10 @@ const userSchema = new Schema(
     },
 
     avatar: {
-      type: String, // CLOUDINARY URL
+      type: String,
       required: [true, "Avatar is Required!"],
-      default: "",
+      default:
+        "https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg",
     },
 
     password: {
@@ -42,7 +43,7 @@ const userSchema = new Schema(
 
     refreshToken: {
       type: String,
-    }
+    },
   },
   { timestamps: true }
 );
@@ -92,4 +93,4 @@ userSchema.methods.generateRefreshToken = function () {
 // });
 
 const User = model("User", userSchema);
-export { User };
+export { User };  

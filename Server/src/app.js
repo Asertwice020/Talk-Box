@@ -13,7 +13,11 @@ app.use(cookieParser());
 
 // ROUTES IMPORTS - WITH CUSTOM NAMES TO BEING ACCOUNTABLE
 import { router as userRoute } from "./routes/user.route.js";
+import { router as chatRoute } from "./routes/chat.route.js"
+import { router as messageRoute } from "./routes/message.route.js"
 
 app.use("/api/v1/users", userRoute);
+app.use("/api/v1/chat", chatRoute);
+app.use("/api/v1/message", messageRoute);
 
 export { app };

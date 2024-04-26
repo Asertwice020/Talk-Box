@@ -11,6 +11,7 @@ import {
   logoutUser,
   generateNewAccessToken,
   changeCurrentPassword,
+  getAllUsers
 } from "../controllers/user.controller.js";
 
 // --- UN-SECURED ROUTES ---
@@ -26,5 +27,7 @@ router.route("/login").post(loginUser);
 // LOGOUT
 router.route("/logout").get(verifyJWT, logoutUser);
 
+// GET ALL USERS
+router.route("/all-users").get(verifyJWT, getAllUsers);
 
 export { router };
