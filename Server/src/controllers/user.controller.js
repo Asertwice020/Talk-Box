@@ -3,8 +3,11 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.util.js";
 import { ApiResponse } from "../utils/apiResponse.util.js";
 import { asyncHandler } from "../utils/asyncHandler.util.js";
-import { uploadToCloudinary } from "../utils/cloudinary.util.js";
+import { uploadToCloudinary, deleteFromCloudinary } from "../utils/cloudinary.util.js";
 import jwt from "jsonwebtoken";
+import fs from "fs";
+import { constantValues } from "../constants.js";
+import { error } from "console";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -19,9 +22,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
   } catch (error) {
     throw new ApiError(
       500,
-      error?.message ||
-        "Internal Server Error While Generating Access And Refresh Tokens!",
-      "1. TIP-1  2. TIP-2",
+      error?.message || "Failed To Generating Access And Refresh Tokens!",
       error,
       error?.stack
     );
@@ -35,67 +36,47 @@ const options = {
 };
 
 const registerUser = asyncHandler(async (req, res) => {
+  let avatarLocalPath;
   try {
-
+    // 1. EXTRACTION: REGISTRATION DETAILS FROM REQ-BODY
     const { userName, fullName, email, password } = req.body;
-    // NOTE => YOU CAN PASS RAW-JSON AS WELL AS FORM DATA IN THE REQ.BODY
-    // LOG
-    // console.log({
-    //   userName,
-    //   fullName,
-    //   email,
-    //   password
-    // })
 
-    // 1. VALIDATION - ALL FIELDS ARE REQUIRED
-    const emptyFieldsValidation = [userName, fullName, email, password].some(field => !field || field.trim().length === 0)
-    console.log({emptyFieldsValidation})
-
-    if (emptyFieldsValidation) {
-      throw new ApiError(
-        406,
-        "All Fields Are Required!",
-        "1. TIP-1   2. TIP-2"
-      );
+    // 2: EXTRACTION: AVATAR ( IF EXISTS )
+    if (req?.file && req?.file?.path && req?.file instanceof Object) {
+      avatarLocalPath = req.file.path;
     }
 
-    // 2. USERNAME CONVENTION VALIDATION
+    // 3. VALIDATOR: ALL FIELDS ARE REQUIRED
+    const emptyFieldsValidation = [userName, fullName, email, password].some(
+      (field) => !field || field.trim().length === 0
+    );
+
+    if (emptyFieldsValidation) {
+      throw new ApiError(400, "All Fields Are Required!");
+    }
+
+    // 4. VALIDATOR: USERNAME CONVENTION
     const userNameRegex = /^[a-zA-Z0-9._-]+$/;
 
     if (!userNameRegex.test(userName)) {
-      throw new ApiError(
-        400,
-        // "Username should contain only letters, numbers, underscore, dot, dash! :: user.controller.js/registerUser",
-        "Invalid username",
-        "1. TIP-1   2. TIP-2"
-      );
+      throw new ApiError(400, "Invalid Username!");
     }
 
-    // 3. FULL-NAME CONVENTION VALIDATION
+    // 5. VALIDATOR: FULL-NAME CONVENTION
     const fullNameRegex = /^[a-zA-Z ]+$/;
 
     if (!fullNameRegex.test(fullName)) {
-      throw new ApiError(
-        400,
-        // "Full-Name should contain only space, letters! :: user.controller.js/registerUser",
-        "Invalid full name",
-        "1. TIP-1   2. TIP-2"
-      );
+      throw new ApiError(400, "Invalid Full Name!");
     }
 
-    // 4. EMAIL VALIDATION
-    // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // 6. VALIDATOR: EMAIL
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-    if (!email || email.trim().length < 0) {
-      throw new ApiError(
-        400,
-        // "Email Field Can't Be Empty! :: user.controller.js/registerUser",
-        "Invalid email address",
-        "1. TIP-1   2. TIP-2"
-      );
+    if (!emailRegex.test(email.trim())) {
+      throw new ApiError(400, "Invalid Email Address!");
     }
 
-    // 5. DOES USER EXISTS ALREADY?
+    // 7. VALIDATOR: DOES USER EXISTS ALREADY
     const existedUser = await User.findOne({
       $or: [{ userName }, { email }],
     });
@@ -103,84 +84,63 @@ const registerUser = asyncHandler(async (req, res) => {
     if (existedUser) {
       throw new ApiError(
         409,
-        // "User with this username or email already exists!  :: user.controller.js/registerUser",
-        "User with this username or email already exists!",
-        "1. TIP-1   2. TIP-2"
+        "User With This Username or Email Already Exists!"
       );
     }
 
-    // 6. CHECK FOR AVATAR IMAGE?
-    let avatarLocalPath;
-    if ( req?.file && req?.file instanceof Object && req?.file?.path ) {
-      // LOG
-      // try {
-      //   console.log({
-      //     fullReqFileObj: req.file,
-      //     imagePath: req.file.path,
-      //   });
-      // } catch (error) {
-      //   console.log(error?.message || "req.files doesn't provide a url of cloudinary")
-      // }
-      avatarLocalPath = req.file.path;
-    }
-    
-    if (!avatarLocalPath) {
-      throw new ApiError(400, "Avatar is required!");
+    // 8. UPLOAD: AVATAR ON CLOUDINARY
+    let avatar;
+    if (avatarLocalPath) {
+      avatar = await uploadToCloudinary(avatarLocalPath);
+      // YOU DON'T NEED TO ADD EXTRA VALIDATOR TO CHECK: AVATAR GETS THE CORRECT VALUE OR NOT, CAUSE ALREADY WROTE THE LOGIC IF AVATAR GETS ANY ERROR WHILE UPLOADING ON CLOUDINARY. AND IF IT GETS AN ERROR SO THE "avatar" GETS THE OBJECT IN IT. AND THEN THIS ERROR PASSED TO THIS "registerUser" CONTROLLER CATCH PART. AND IT WILL SHOW THAT ERROR WHICH APPROPRIATE MANNER. CAUSE YOU ADD THERE "error?.message"
     }
 
-    // 7. UPLOAD AVATAR ON CLOUDINARY
-    const avatar = await uploadToCloudinary(avatarLocalPath)
-
-    if (!avatar) {
-      throw new ApiError(400, "Failed to upload your avatar on cloudinary!");
-    }
-
-    // 8. OBJECT CREATION IN DB
+    // 9. CREATION: USER OBJECT/DOCUMENT IN DB
     const user = await User.create({
       fullName,
       userName: userName.toLowerCase(),
       email,
-      avatar: avatar?.url,
-      // avatar: avatar?.secure_url, -> it's also work same but i don't know the difference yet!
+      avatar: avatar?.url || constantValues.DEFAULT_AVATAR,
       password,
     });
 
     if (!user) {
-      throw new ApiError(
-        500,
-        "Failed to submit your details in DB!",
-        "1. TIP-1  2. TIP-2"
-      );
+      throw new ApiError(500, "Failed To Create User Document In DB!");
     }
-    // LOG  
-    // console.log(`user: `, user);
 
-    // 9. REMOVING SOME FIELDS BEFORE SENDING RESPONSE TO FRONTEND
+    // 10. DELETION: REMOVING PASSWORD, REFRESH-TOKEN BEFORE SENDING RESPONSE TO FRONTEND
     const createdUser = await User.findById(user._id).select(
       "-password -refreshToken"
     );
 
     if (!createdUser) {
-      throw new ApiError(
-        500,
-        "Failed to register yourself in DB!",
-        "1. TIP-1  2. TIP-2"
-      );
+      throw new ApiError(501, "Failed To Create Your Account In DB!");
     }
-    // LOG
-    console.log(`created-user: `, createdUser);
 
-    // 10. SENDING THE RESPONSE TO THE FRONTEND
+    // 11. SEND: RESPONSE ON FRONTEND
     return res
       .status(201)
-      .json(new ApiResponse(200, "User Registered Successfully!", createdUser));
-
+      .json(
+        new ApiResponse(200, "Your Account Created Successfully!", createdUser)
+      );
   } catch (error) {
+    // MONGOOSE-VALIDATOR: VALIDATING ERRORS USING MONGOOSE'S BUILT-IN MSGS
+    if (error.name === "ValidationError") {
+      console.log({allErrorDotName: error.name})
+      const validationErrors = [];
+      for (const field in error.errors) {
+        validationErrors.push(error.errors[field].message);
+      }
+      console.log({ validationErrors });
+      throw new ApiError(400, validationErrors.join(", "));
+    }
+
+    // DELETION: REMOVING AVATAR FROM TEMP FOLDER OF SERVER WHILE AN ERROR OCCURS
+    fs.existsSync(avatarLocalPath) && fs.unlinkSync(avatarLocalPath);
+
     throw new ApiError(
-      403,
-      error?.message ||
-        "Something Went Wrong While Registering The User! :: user.controller.js/registerUser",
-      "1. TIP-1   2. TIP-2",
+      500,
+      error?.message || "Something Went Wrong While Registering The User!",
       error,
       error?.stack
     );
@@ -189,55 +149,49 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   try {
+    // 1. EXTRACTION: LOGIN DETAILS FROM REQ-BODY
     const { userName, email, password } = req.body;
-    // NOTE => YOU CAN ONLY PASS RAW-JSON DATA IN THE REQ.BODY
-    // LOG
-    console.log({
-      userName,
-      email,
-      password
-    })
 
-    // 1. VALIDATION - USERNAME OR EMAIL, ONE IS REQUIRED
+    // LOG
+    // console.log({userName,email,password});
+
+    // 2. VALIDATOR: ONE IS REQUIRED -> USERNAME || EMAIL
     if (!(userName || email)) {
-      throw new ApiError(
-        400,
-        "UserName or Email is required!",
-        "1. TIP-1  2. TIP-2"
-      );
+      throw new ApiError(400, "UserName or Email Is Required!");
     }
 
-    // 2. FIND USER IN DB
+    // 3. FIND: USER IN DB
     const user = await User.findOne({
       $or: [{ userName }, { email }],
     });
 
-    // 3. IF USER NOT FOUND
     if (!user) {
-      throw new ApiError(404, "User does not exists!");
+      throw new ApiError(404, "User Does Not Exists!");
     }
 
-    // 4. PASSWORD VALIDATION
+    // 4. VALIDATOR: PASSWORD
     const isPasswordValid = await user.comparePassword(password);
-
-    // 5. IF PASSWORD NOT MATCHED
     if (!isPasswordValid) {
-      throw new ApiError(401, "Invalid Password!", "No Debugging Tips");
+      throw new ApiError(400, "Invalid Password!");
     }
 
-    // 6. GENERATE ACCESS & REFRESH TOKENS
+    // 5. GENERATION: ACCESS & REFRESH TOKENS
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
       user._id
     );
 
     // FIXME: UPDATE THE USER OBJECT WITH TOKENS INSTEAD OF MAKING ANOTHER REQUEST TO DB, WHICH YOU ARE DOING RIGHT NOW! [CHECK IT NEEDS A _id OR NOT AND IF NOT SO HOW IT'S WORKING]
 
-    // 7. REMOVING SOME FIELDS BEFORE SENDING RESPONSE TO FRONTEND
+    // 7. DELETION: REMOVING PASSWORD, REFRESH-TOKEN BEFORE SENDING RESPONSE TO FRONTEND
     const loggedInUser = await User.findById(user._id).select(
       "-password -refreshToken"
     );
 
-    // 8. SEND THE RESPONSE TO FRONTEND
+    if (!loggedInUser) {
+      throw new ApiError(501, "Failed To Made You Logged In!");
+    }
+
+    // 8. SEND: RESPONSE ON FRONTEND
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
@@ -251,24 +205,25 @@ const loginUser = asyncHandler(async (req, res) => {
       );
   } catch (error) {
     throw new ApiError(
-      401,
-      error?.message ||
-        "Forbidden Unauthorized User! :: user.controller.js/loginUser",
-      "1. TIP-1   2. TIP-2",
+      500,
+      error?.message || "Something Went Wrong While Your Logging!",
       error,
       error?.stack
     );
   }
 });
-
+// ❌
 const logoutUser = asyncHandler(async (req, res) => {
   try {
-    // LOG
-    console.log("[logoutUser controller] req.user: ", req.user);
+    // 1. VALIDATOR: LOGGED-IN
+    if (!req?.user) {
+      throw new ApiError(401, "Unauthorized Request!");
+    }
 
+    // 2. DELETION: REMOVING REFRESH-TOKEN FIELD FROM THAT PARTICULAR USER-DOCUMENT
     await User.findByIdAndUpdate(
       req.user._id,
-      // $unset removes the field from document
+      // DELETION: REMOVING REFRESH TOKEN FIELD FROM DOCUMENT
       { $unset: { refreshToken: 1 } },
       { new: true }
     );
@@ -289,17 +244,22 @@ const logoutUser = asyncHandler(async (req, res) => {
   }
 });
 
-const getAllUsers = asyncHandler( async (req, res) => {
+const getAllUsers = asyncHandler(async (req, res) => {
   try {
-    // LOG
-    // endpoint will look like: /api/users/all-users?search=sumit result: sumit.
-    // const users = req?.query?.search
-    // console.log(users);
+    /* EXPLAIN: WHEN YOU QUERY ON THIS ENDPOINT SO IT WILL ASK YOU ANYTHING BY THROUGH YOU WANT TO SEARCH/GET THAT USER, AND YOU WILL GET ALL THE USERS WHICH HAS/HAVE THAT SEARCHED THING IN ITSELF.
+      EG: USERNAME, FULL-NAME, EMAIL ETC.
+      REAL-EG: /api/v1/users/all-users?search=alex&email=alex doe
+      BREAK-DOWN: HERE, YOUR SEARCHED QUERIES ARE:
+        1. field: you didn't provide -> value: alex
+        2. field: email -> value: alex doe
+    */
 
+    // 1. VALIDATOR: QUERY-OBJECT
     if (!req?.query?.search) {
-      throw new ApiError(400, "You didn't pass anything to search!", "No Tip!");
+      throw new ApiError(400, "You Didn't Pass Anything To Search!");
     }
 
+    // 2. FIND: DATA BASED ON THE QUERIES
     const data = req.query.search && {
       $or: [
         { userName: { $regex: req.query.search, $options: "i" } },
@@ -308,92 +268,84 @@ const getAllUsers = asyncHandler( async (req, res) => {
     };
 
     if (!data) {
-      // LOG
-      console.log({ data });
-      throw new ApiError(
-        404,
-        "UNREADABLE OR NO DATA COMES IN USERNAME AND EMAIL!",
-        "No Tip!"
-      );
+      throw new ApiError(404, "No Data Founds Based On Your Search!");
     }
 
+    // 3. FIND: USER BASED ON THE COLLECTED DATA
     const users = await User.find(data).find({ _id: { $ne: req?.user?._id } });
-
     // LOG
-    console.log({
-      dataUsername: data.$or.userName,
-      dataEmail: data.$or.email,
-      users,
-    });
+    console.log({ users });
 
-    if ( !users || users.length === 0) {
-      throw new ApiError(404, "No result found!", "No Tip!");
+    // 4. VALIDATOR: USERS NOT FOUND
+    if (!users || users.length) {
+      throw new ApiError(404, "No Result Found!");
     }
 
+    // 5. SEND: RESPONSE ON FRONTEND
     return res
-      .status(200)
+      .status(302)
       .json(
-        new ApiResponse(
-          200,
-          "Your Requested Thing Searched Successfully!",
-          users
-        )
+        new ApiResponse(302, "Your Requested User Found Successfully!", users)
       );
   } catch (error) {
     throw new ApiError(
       500,
-      error?.message || "Something went wrong while getting your search results!",
+      error?.message ||
+        "Something went wrong while getting your search results!",
       "NO Tips!",
       error,
       error?.stack
-    ) 
+    );
   }
-})
+});
 
 const generateNewAccessToken = asyncHandler(async (req, res) => {
   // first verify user's access token is expired, if yes, so verify user's refresh token through server, if it's match so run the method which you created for generating both tokens, so now user has both new tokens
   // you can access the accessToken by cookies: req.cookies?.refreshToken || req.body?.refreshToken
-
-  const incomingRefreshToken =
-    req.cookies?.refreshToken || req.body?.refreshToken;
+  try {
+    // 1. EXTRACTION: REFRESH TOKEN
+    const incomingRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
 
     // LOG
-  console.log("[BEFORE] req.cookies.refreshToken: ", req.cookies?.refreshToken);
-  console.log("[BEFORE] req.cookies.accessToken: ", req.cookies?.accessToken);
+    // console.log("[BEFORE] req.cookies.refreshToken: ", req.cookies.refreshToken);
+    // console.log("[BEFORE] req.cookies.accessToken: ", req.cookies.accessToken);
 
-  if (!incomingRefreshToken) {
-    throw new ApiError(401, "Unauthorized Request!");
-  }
+    if (!incomingRefreshToken) {
+      throw new ApiError(401, "Unauthorized Request!");
+    }
 
-  try {
+    // 2. VERIFY: PROVIDED REFRESH TOKEN
     const decodedToken = await jwt.verify(
       incomingRefreshToken,
       configEnv.REFRESH_TOKEN_SECRET
     );
 
     if (!decodedToken) {
-      // throw new ApiError(401, "Invalid Session ID!");
       throw new ApiError(401, "Invalid Refresh Token ID!");
     }
 
+    // 3. FIND: USER IN DB
     const user = await User.findById(decodedToken?._id);
 
     if (!user) {
       throw new ApiError(401, "Invalid Refresh Token ID!");
     }
 
+    // 4. COMPARE AND VERIFY: PROVIDED TOKEN & FETCHED/DECODED TOKEN
     if (incomingRefreshToken !== user?.refreshToken) {
-      throw new ApiError(401, "Refresh Token is either expired or used!");
+      throw new ApiError(401, "Refresh Token Is Either Expired or Used!");
     }
 
-    const { accessToken, newRefreshToken } = await generateAccessAndRefreshTokens(
-      user._id
-    );
+    // 5. GENERATION: ACCESS & REFRESH TOKENS
+    const { accessToken, newRefreshToken } =
+      await generateAccessAndRefreshTokens(user._id);
 
     // LOG
-    console.log("[AFTER] req.cookies.refreshToken: ", req.cookies?.newRefreshToken);
-    console.log("[AFTER] req.cookies.accessToken: ", req.cookies?.accessToken);
+    // console.log("[AFTER] req.cookies.refreshToken: ", req.cookies?.newRefreshToken );
+    // console.log("[AFTER] req.cookies.accessToken: ", req.cookies?.accessToken);
 
+    // 6. SEND: RESPONSE ON FRONTEND
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
@@ -401,19 +353,20 @@ const generateNewAccessToken = asyncHandler(async (req, res) => {
       .json(
         new ApiResponse(
           200,
-          "Access Token Refreshed Successfully! As Well As Refresh Token Too",
-          // "Access token refreshed"
+          "Access & Refreshed Tokens Refreshed Successfully!",
           { accessToken, refreshToken: newRefreshToken }
         )
       );
   } catch (error) {
     throw new ApiError(
       401,
-      error?.message || "Unauthorized Request || Invalid Refresh Token!"
+      error?.message || "Unauthorized Request",
+      error,
+      error?.stack
     );
   }
 });
-
+// ❌
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
@@ -423,17 +376,17 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
       oldPassword,
       newPassword,
     });
-  
+
     const user = await User.findById(req.user?._id);
     const isPasswordCorrect = await user.comparePassword(oldPassword);
-  
+
     if (!isPasswordCorrect) {
       throw new ApiError(400, "Invalid old password");
     }
-  
+
     user.password = newPassword;
     await user.save({ validateBeforeSave: false });
-  
+
     return res
       .status(200)
       .json(new ApiResponse(200, {}, "Password changed successfully"));
@@ -449,6 +402,128 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   }
 });
 
+const changeUserAvatar = asyncHandler(async (req, res) => {
+  let newAvatar;
+  try {
+    // 1. VALIDATOR & EXTRACTION: AVATAR PROVIDED OR NOT
+    let avatarLocalPath;
+    if (req?.file && req?.file instanceof Object && req?.file?.path) {
+      avatarLocalPath = req.file.path;
+    }
+
+    if (!avatarLocalPath) {
+      throw new ApiError(400, "You Didn't Provide Avatar!");
+    }
+
+    // 2. UPLOAD: AVATAR ON CLOUDINARY
+    newAvatar = await uploadToCloudinary(avatarLocalPath);
+
+    // 3. VALIDATOR: AVATAR UPLOADED ON CLOUDINARY
+    if (!newAvatar || !newAvatar.url) {
+      throw new ApiError(503, "Failed To Upload Your Avatar On Cloudinary!");
+    }
+
+    // 4. REPLACE: AVATAR FILED VALUE WITH NEW ONE IN DB
+    const user = await User.findByIdAndUpdate(req.user?._id).select("avatar");
+
+    if (!user) {
+      throw new ApiError(404, "User Not Found!");
+    }
+
+    // 5. DELETION: OLD AVATAR FROM CLOUDINARY ( IF EXISTS )
+    if (user.avatar && user.avatar === constantValues.DEFAULT_AVATAR) {}
+    else {await deleteFromCloudinary(user.avatar)}
+
+    // 6. UPDATION: USER NEW AVATAR IN DB
+    user.avatar = newAvatar.url;
+    await user.save();
+
+    // 7. VALIDATOR: VERIFY AVATAR REPLACEMENT IN DB
+    const updatedUser = await User.findById(req.user?._id).select("avatar");
+
+    if (updatedUser && updatedUser.avatar !== newAvatar.url) {
+      throw new ApiError(500, "Avatar Replacement Failed!");
+    }
+
+    // 8. SEND: RESPONSE ON FRONTEND
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          "Your Avatar is changed successfully!",
+          updatedUser
+        )
+      );
+  } catch (error) {
+    if (newAvatar && newAvatar.url) {
+      await deleteFromCloudinary(newAvatar.url);
+    }
+
+    throw new ApiError(
+      500,
+      error?.message || "Unable To Update Your Avatar!!!",
+      "1. DON'T FORGOT TO REMOVE OLD IMAGE FROM CLOUDINARY",
+      error,
+      error?.stack
+    );
+  }
+});
+
+const removeUserAvatar = asyncHandler(async (req, res) => {
+  let deletedAvatarUrl;
+  try {
+    // 1. FETCHING: USER WITH AVATAR FILED ONLY IN DB
+    const user = await User.findByIdAndUpdate(req.user._id).select("avatar");
+
+    if (!user) {
+      throw new ApiError(404, "User Not Found!");
+    }
+    
+    // 2. DELETION: CURRENT AVATAR FROM CLOUDINARY ( IF EXISTS )
+    if (user.avatar === constantValues.DEFAULT_AVATAR) {
+      throw new ApiError(404, "Avatar Not Found!")
+    } else {
+      await deleteFromCloudinary(user.avatar);
+      deletedAvatarUrl = user.avatar
+    }
+
+    // 3. UPDATION: USER'S AVATAR SET TO EMPTY IN DB
+    user.avatar = constantValues.DEFAULT_AVATAR;
+    await user.save();
+
+    // 4. VALIDATOR: VERIFY AVATAR REPLACEMENT IN DB
+    const updatedUser = await User.findById(req.user?._id).select("avatar");
+
+    if (updatedUser && updatedUser.avatar !== user.avatar) {
+      console.log({updatedUserAvatar: updatedUser.avatar, userAvatar: user.avatar})
+      throw new ApiError(500, "Avatar Replacement Failed!");
+    }
+
+    // 5. SEND: RESPONSE ON FRONTEND
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          "Your Avatar Is Removed Successfully!",
+          updatedUser
+        )
+      );
+  } catch (error) {
+    // ROLLBACK: IF DELETION FROM CLOUDINARY WAS SUCCESSFUL BUT DB UPDATION FAILED. SO ROLLBACK BY RE-UPLOADING THE DELETED AVATAR
+    // deletedAvatarUrl && await uploadToCloudinary(deletedAvatarUrl);
+
+    throw new ApiError(
+      500,
+      error?.message || "Unable To Remove Your Avatar!!!",
+      "No Tips",
+      error,
+      error?.stack
+    );
+  }
+});
+
 export {
   registerUser,
   loginUser,
@@ -456,4 +531,6 @@ export {
   generateNewAccessToken,
   changeCurrentPassword,
   getAllUsers,
+  changeUserAvatar,
+  removeUserAvatar,
 };

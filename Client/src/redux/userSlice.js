@@ -1,5 +1,13 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// const userInstance = {
+//   "_id": "alkjflksajfdlklkasjdklfjJ#$LKjlk",
+//   "userName": "sumit",
+//   "fullName": "sumit saraswat",
+//   "email": "sumitsaraswat04@gmail.com",
+//   "avatar": "cloudinary-url-of-avatar",
+// }
+
 const userSlice = createSlice({
   name: "user",
   initialState: {

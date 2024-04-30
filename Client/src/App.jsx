@@ -5,6 +5,7 @@ import {
   createRoutesFromElements,
 } from "react-router-dom";
 
+import { ChakraProvider } from "@chakra-ui/react";
 import { lazy } from "react";
 import Router from "./Router";
 
@@ -29,10 +30,12 @@ import store from "./redux/store";
 
 const App = () => {
   return (
-    <Provider store={store}>
-      <RouterProvider router={router} />
-      <Toaster />
-    </Provider>
+    <ChakraProvider>
+      <Provider store={store}>
+        <RouterProvider router={router} />
+        <Toaster />
+      </Provider>
+    </ChakraProvider>
   );
 };
 

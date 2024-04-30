@@ -2,7 +2,12 @@ import { Schema, model } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { configEnv } from "../configEnv/index.js";
+/* FIXME: WHILE CREATING SCHEMAS I DEFINED THE ERROR MESSAGE, IF USER LEAVE ANY REQUIRED FILED EMPTY. BUT DON'T KNOW HOW TO USE THESE ERROR MESSAGES BY MONGOOSE YET.
+  I ALSO NOTICE THAT THE PASSWORD FIELD MUST HAS MINIMUM 8 CHARACTERS, BUT I ABLE TO MAKE 3 CHARS PASSWORD.
+  FIX ALL THESE MONGOOSE SIDE ISSUE BY MONGOOSE DOCS AND AI.
 
+  I HAVE A DOUBT MAYBE IF I PROVIDE THE WRONG TYPE EVEN SO I DON'T GET ANY ERROR BY MONGOOSE BUT MY CONTROLLER LOGIC WILL DEFINITELY THROW AN ERROR!
+*/
 const userSchema = new Schema(
   {
     userName: {
@@ -27,11 +32,14 @@ const userSchema = new Schema(
       lowercase: true,
     },
 
+    about: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     avatar: {
       type: String,
-      required: [true, "Avatar is Required!"],
-      default:
-        "https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg",
     },
 
     password: {

@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "../components/ui/card";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { setAuthUser } from "../redux/userSlice";
@@ -31,22 +31,19 @@ const Register = () => {
     password: "",
   });
 
-  const [submitting, setSubmitting] = useState(false);
+  // useEffect(() => {
+  //   // Clear form data if submission is complete
+  //   if (!submitting) {
+  //     setUser({
+  //       fullName: "",
+  //       userName: "",
+  //       email: "",
+  //       avatar: undefined,
+  //       password: "",
+  //     });
+  //   }
+  // }, [submitting]);
 
-  useEffect(() => {
-    // Clear form data if submission is complete
-    if (!submitting) {
-      setUser({
-        fullName: "",
-        userName: "",
-        email: "",
-        avatar: undefined,
-        password: "",
-      });
-    }
-  }, [submitting]);
-
-  
   const onChangeHandler = (e) => {
     const { name, value, files } = e.target;
     setUser((prevUser) => ({
@@ -59,8 +56,8 @@ const Register = () => {
     e.preventDefault();
 
     // Prevent multiple submissions
-    if (submitting) return;
-    setSubmitting(true); // Set form submission state to true
+    // if (submitting) return;
+    // setSubmitting(true); // Set form submission state to true
 
     try {
       // LOG
@@ -83,11 +80,17 @@ const Register = () => {
         withCredentials: true,
       });
       // LOG
-      console.log(res);
+      console.log({fullResponse: res});
+
+      const authUser = res?.data?.data;
+
+      if (!authUser && !(authUser instanceof Object)) {
+        toast.error("Failed to show your Avatar!");
+      }
 
       if (res.data.success) {
         toast.success(res.data.message);
-        dispatch(setAuthUser(res.data.data.user));
+        dispatch(setAuthUser(authUser));
         navigate("/");
       }
     } catch (error) {
@@ -97,17 +100,16 @@ const Register = () => {
         console("Error:", error);
         toast.error("An error occurred. Please try again later.");
       }
-    } finally {
-      setSubmitting(false); // Reset form submission state
-    }
+    } 
+    // finally {
+    //   setSubmitting(false); // Reset form submission state
+    // }
   };
   return (
     <div className="flex justify-center items-center h-screen">
       <Card className="w-[350px]">
         <CardHeader className="text-center">
-          <CardTitle className="font-[700] text-3xl">
-            Register
-          </CardTitle>
+          <CardTitle className="font-[700] text-3xl">Register</CardTitle>
           <CardDescription className="text-sm">
             create your account
           </CardDescription>
@@ -117,7 +119,9 @@ const Register = () => {
             <div className="grid w-full items-center gap-4">
               {/* USERNAME */}
               <div className="flex flex-col space-y-1.5">
-                <Label className="cursor-pointer" htmlFor="userName">Username</Label>
+                <Label className="cursor-pointer" htmlFor="userName">
+                  Username
+                </Label>
                 <Input
                   value={user.userName}
                   onChange={onChangeHandler}
@@ -129,7 +133,9 @@ const Register = () => {
               </div>
               {/* FULL NAME */}
               <div className="flex flex-col space-y-1.5">
-                <Label className="cursor-pointer" htmlFor="full-name">Full Name</Label>
+                <Label className="cursor-pointer" htmlFor="full-name">
+                  Full Name
+                </Label>
                 <Input
                   value={user.fullName}
                   onChange={onChangeHandler}
@@ -140,9 +146,11 @@ const Register = () => {
               </div>
               {/* EMAIL */}
               <div className="flex flex-col space-y-1.5">
-                <Label className="cursor-pointer" htmlFor="email">Email</Label>
+                <Label className="cursor-pointer" htmlFor="email">
+                  Email
+                </Label>
                 <Input
-                  // type={"email"}
+                  type={"email"}
                   value={user.email}
                   onChange={onChangeHandler}
                   id="email"
@@ -152,7 +160,9 @@ const Register = () => {
               </div>
               {/* AVATAR */}
               <div className="flex justify-center items-center space-y-1.5">
-                <Label className="cursor-pointer" htmlFor="avatar">Avatar</Label>
+                <Label className="cursor-pointer" htmlFor="avatar">
+                  Avatar
+                </Label>
                 <Input
                   type={"file"}
                   className="border-transparent shadow-transparent"
@@ -167,15 +177,17 @@ const Register = () => {
               </div>
               {/* PASSWORD */}
               <div className="flex flex-col space-y-1.5">
-                <Label className="cursor-pointer" htmlFor="password">Password</Label>
-                <Input
-                  type={"password"}
-                  onChange={onChangeHandler}
-                  value={user.password}
-                  id="password"
-                  name="password"
-                  placeholder="Password"
-                />
+                <Label className="cursor-pointer" htmlFor="password">
+                  Password
+                </Label>
+                  <Input
+                    type={"password"}
+                    onChange={onChangeHandler}
+                    value={user.password}
+                    id="password"
+                    name="password"
+                    placeholder="Password"
+                  />
               </div>
               {/* SUBMIT */}
               <Button type="submit" className="w-full">

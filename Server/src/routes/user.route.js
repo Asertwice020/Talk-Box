@@ -11,7 +11,9 @@ import {
   logoutUser,
   generateNewAccessToken,
   changeCurrentPassword,
-  getAllUsers
+  getAllUsers,
+  changeUserAvatar,
+  removeUserAvatar,
 } from "../controllers/user.controller.js";
 
 // --- UN-SECURED ROUTES ---
@@ -29,5 +31,13 @@ router.route("/logout").get(verifyJWT, logoutUser);
 
 // GET ALL USERS
 router.route("/all-users").get(verifyJWT, getAllUsers);
+
+// CHANGE USER AVATAR
+router
+  .route("/change-avatar")
+  .patch(verifyJWT, upload.single("avatar"), changeUserAvatar);
+
+// REMOVE USER AVATAR
+router.route("/remove-avatar").patch(verifyJWT, removeUserAvatar);
 
 export { router };

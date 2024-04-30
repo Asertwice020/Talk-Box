@@ -48,13 +48,12 @@ const Login = () => {
         withCredentials: true,
       });
       // LOG
-      // console.log(res);
-      // console.log({authUser})
+      console.log(res);
       
       const authUser = res?.data?.data?.user;
 
       if ( !authUser && !(authUser instanceof Object)) {
-        toast.error("Failed to save your Login Data!")
+        toast.error("Failed to show your Avatar!")
       }
 
       if (res.data.success) {
@@ -68,7 +67,7 @@ const Login = () => {
     } catch (error) {
       console.log(error);
 
-      // TODO: ADD ANOTHER TOAST FOR "INTERNET CONNECTION ERRR AFTER READING AXIOS DOCS"
+      // TODO: ADD ANOTHER TOAST FOR "INTERNET CONNECTION ERROR AFTER READING AXIOS DOCS"
       
       if (error.response.status === 500) {
         toast.error("Internal Server Error!");
@@ -102,7 +101,7 @@ const Login = () => {
                   onChange={onChangeHandler}
                   id="userName"
                   name="userName"
-                  placeholder="Username"
+                  placeholder="Username or Email"
                 />
               </div>
               {/* EMAIL */}
