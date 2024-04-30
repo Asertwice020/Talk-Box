@@ -22,9 +22,11 @@ web_modules/
 .node_repl_history
 *.tgz
 .yarn-integrity
+.env/
+./.env
+./..env
 /.env
-*/.env
-.env/*
+
 .cache
 .parcel-cache
 .next
