@@ -29,53 +29,85 @@ const Login = () => {
   });
 
   const onChangeHandler = (e) => {
+    console.log("Event triggered:", e);
     const { name, value } = e.target;
     setloginData({ ...loginData, [name]: value });
   };
 
   const onSubmitHandler = async (e) => {
     e.preventDefault();
+    console.log("Form submitted:", loginData);
 
     // CLIENT-SIDE VALIDATION - ( BY THIS VALIDATION WE SAVE AN UNNECESSARY API CALL )
     if (!loginData.usernameOrEmail.trim() || !loginData.password.trim()) {
       toast.error("Please Enter Your Login Credentials!");
       return;
     }
-
     try {
-      const options = {
-        headers: { "Content-Type": "application/json" },
+      // let loginData = {
+      //   usernameOrEmail: user.usernameOrEmail,
+      //   password: user.password,
+      // };
+      // const response = await axios.post(userRoutes.login, loginData, {
+      //   headers: {
+      //     // "Content-Type": "multipart/form-data",
+      //     "Content-Type": "application/json",
+      //   },
+      //   withCredentials: true,
+      // });
+
+      const response = await axios.post(userRoutes.login, loginData, {
+        headers: {
+          "Content-Type": "application/json", // Set appropriate content type
+        },
         withCredentials: true,
-      };
-
-      const response = await axios.post(userRoutes.login, loginData, options)
-
-      const { user: authUser, accessToken, refreshToken } = response.data.data;
-
-      if (!authUser && !(authUser instanceof Object)) {
-        toast.error("Failed to show your Avatar!");
-        return;
-      }
+      });
 
       if (response.status === 200) {
+        const { user: loggedInUser, accessToken, refreshToken } = response.data;
+
         // STORE: ACCESS & REFRESH TOKENS SECURELY ( HTTP-ONLY COOKIES || LOCAL-STORAGE )
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("refreshToken", refreshToken);
 
-        dispatch(setAuthUser(authUser));
+        dispatch(setAuthUser(loggedInUser));
         toast.success(response.data.message);
         navigate("/");
       } else {
         toast.error("Invalid username/email or password.");
       }
-      
+
+      // const authUser = res?.data?.data?.user;
+
+      // if (!authUser && !(authUser instanceof Object)) {
+      //   toast.error("Failed To Retrieve User Data!");
+      // }
+
+      // if (res.data.success) {
+      //   toast.success(res.data.message);
+      //   dispatch(setAuthUser(authUser));
+      //   navigate("/");
+      // }
+
+      // // HANDLE SPECIFIC ERROR CODES
+      // res.status === 401 && toast.error("Invalid Credentials");
+      // res.status === 400
+      //   ? toast.error("Invalid request data")
+      //   : toast.error("An error occurred");
     } catch (error) {
-      console.log({error})
+      console.error(error);
+
+      // HANDLE NETWORK ERRORS
+      if (error.response) {
+        error.response.status === 0
+          ? toast.error("Please Check Your Internet Connection⚠️")
+          : toast.error("An error occurred");
+      }
     }
-  }
+  };
   return (
-    <div className="flex justify-center items-center h-screen">
-      <Card className="w-[350px]">
+    <div className="flex justify-center items-center h-screen bg-slate-800">
+      <Card className="w-[350px] bg-gray-600">
         <CardHeader className="text-center">
           <CardTitle className="font-[700] text-3xl">Login</CardTitle>
           <CardDescription className="text-sm">

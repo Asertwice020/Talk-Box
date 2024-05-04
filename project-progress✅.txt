@@ -1,3 +1,22 @@
+# boundaries:
+1. you are not making this app/website to scalable approach. cause you are working with monolisthic(i don't know the spelling) architechture. which you find out lately, and another architecture is micro-services. but it's not that much high end project. so i don't go to first learn and then excute or shift to that one.
+
+I AM NOT INCLUDING THESE FUNCIIONALITIES
+ 
+2. negative ones: you are not keeping the record of message sending and receiving stages.
+eg: user A sending the message to user B. so
+Stage 0: user A's message is sending to the server - clock icon⌚ 
+Stage 1: user A's message successfully receives on server - single tick✔️
+Stage 2: server send that message to user B successfully - double tick✔️✔️
+Stage 3: user B seen the message - blue tick✅
+
+## TIPS:
+1. don't be perfect, you can't clone the fully WhatsApp/insta. there are always something which will bother you.
+2. you are making your first full stack project from scratch. so yes, you should not focus on perfection, end-result or what will you get or how much you paidoff instead you should focus on learning, read docs for hours, find and fix the bugs by your own which bothers you.
+3. it might take 1 month to fininsh. but that 1 month will worth it, when you become confident on your skills.
+4. 
+
+
 1. configEnv/index.js ✅
 2. db/connectDb.js ✅
 3. utils/apiError.util.js ✅

@@ -100,7 +100,8 @@ const registerUser = asyncHandler(async (req, res) => {
       fullName,
       userName: userName.toLowerCase(),
       email,
-      avatar: avatar?.url || constantValues.DEFAULT_AVATAR,
+      // avatar: avatar?.url || constantValues.DEFAULT_AVATAR,
+      avatar: avatar?.url,
       password,
     });
 
@@ -149,11 +150,27 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   try {
+    // 0. REFINE & FILTER: USER GIVES USER-NAME OR EMAIL TO LOGIN. UPDATE THE REQ-BODY
+    const { usernameOrEmail } = req?.body;
+    
+    if (usernameOrEmail) {
+      usernameOrEmail.includes("@")
+        ? (req.body.email = usernameOrEmail)
+        : (req.body.userName = usernameOrEmail);
+
+    // DELETION: UN-USABLE KEY IN THE REQ-BODY
+    "usernameOrEmail" in req.body && delete req.body.usernameOrEmail
+    }
+
     // 1. EXTRACTION: LOGIN DETAILS FROM REQ-BODY
     const { userName, email, password } = req.body;
-
-    // LOG
-    // console.log({userName,email,password});
+    console.log(
+      {
+        userName,
+        email,
+        password,
+      },
+    );
 
     // 2. VALIDATOR: ONE IS REQUIRED -> USERNAME || EMAIL
     if (!(userName || email)) {
@@ -430,8 +447,11 @@ const changeUserAvatar = asyncHandler(async (req, res) => {
       throw new ApiError(404, "User Not Found!");
     }
 
+    console.log({userAvatar: user.avatar})
+
     // 5. DELETION: OLD AVATAR FROM CLOUDINARY ( IF EXISTS )
-    if (user.avatar && user.avatar === constantValues.DEFAULT_AVATAR) {}
+    // if (user.avatar && user.avatar === constantValues.DEFAULT_AVATAR) {}
+    if (!user.avatar) {}
     else {await deleteFromCloudinary(user.avatar)}
 
     // 6. UPDATION: USER NEW AVATAR IN DB
@@ -489,7 +509,8 @@ const removeUserAvatar = asyncHandler(async (req, res) => {
     }
 
     // 3. UPDATION: USER'S AVATAR SET TO EMPTY IN DB
-    user.avatar = constantValues.DEFAULT_AVATAR;
+    // user.avatar = constantValues.DEFAULT_AVATAR;
+    user.avatar = "";
     await user.save();
 
     // 4. VALIDATOR: VERIFY AVATAR REPLACEMENT IN DB
@@ -524,6 +545,87 @@ const removeUserAvatar = asyncHandler(async (req, res) => {
   }
 });
 
+const changeCurrentUserDetails = asyncHandler( async (req, res) => {
+  try {
+    // 0. REFINE & FILTER: USER GIVES USERNAME || ABOUT || EMAIL TO CHANGE - UPDATE THE REQ-BODY
+    const { fullName, email, userName, about } = req?.body;
+
+    if (fullName || email || userName || about) {
+      fullName ? (req.body.fullName = fullName) : null;
+      email ? (req.body.email = email) : null;
+      userName ? (req.body.userName = userName) : null;
+      about ? (req.body.about = about) : null;
+    }
+
+    // 1. VALIDATOR: USERNAME CONVENTION
+    const userNameRegex = /^[a-zA-Z0-9._-]+$/;
+    if (userName) {
+      if (!userNameRegex.test(userName)) {
+        throw new ApiError(400, "Invalid Username!");
+      }
+    }
+
+    // 2. VALIDATOR: FULL-NAME CONVENTION
+    const fullNameRegex = /^[a-zA-Z ]+$/;
+
+    if (fullName) {
+      if (!fullNameRegex.test(fullName)) {
+        throw new ApiError(400, "Invalid Full Name!");
+      }
+    }
+
+    // 3. VALIDATOR: EMAIL
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if(email) {
+      if (!emailRegex.test(email.trim())) {
+        throw new ApiError(400, "Invalid Email Address!");
+      }
+    }
+
+    // 4. CREATION: USER OBJECT/DOCUMENT IN DB
+    const userObj = {
+      fullName,
+      userName: userName.toLowerCase(),
+      email,
+      about,
+    };
+
+    if (!userObj) {
+      throw new ApiError(
+        501,
+        error?.message || "Failed To Update Your Details!"
+      );
+    }
+
+    // 5. UPDATION: USER DETAILS
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, userObj, {
+      new: true,
+    });
+
+    if (!updatedUser) {
+      throw new ApiError(
+        503,
+        error?.message || "Failed To Update Your Details In DB!"
+      );
+    }
+
+    // 6. SEND: RESPONSE ON FRONTEND
+    return res
+    .status(200)
+    .json(new ApiResponse(200, "Your Details Updated Successfully!", updatedUser))
+
+  } catch (error) {
+    throw new ApiError(
+      500,
+      error?.message || "Failed To Update Your Details!",
+      error,
+      error?.stack
+    );
+  }
+  // 0. 
+  // 1. EXTRACTION: USERNAME, EMAIL, ABOUT FROM REQ-BODY
+})
+
 export {
   registerUser,
   loginUser,
@@ -533,4 +635,5 @@ export {
   getAllUsers,
   changeUserAvatar,
   removeUserAvatar,
+  changeCurrentUserDetails,
 };

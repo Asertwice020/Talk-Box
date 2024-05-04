@@ -6,9 +6,10 @@ import { IoIosSearch } from "react-icons/io";
 import { IoFilterSharp } from "react-icons/io5";
 import { useState } from "react";
 import Profile from "./Profile";
+import { colorCodes } from "../constants";
 
 const Sidebar = () => {
-  const authUser = useSelector((state) => state.user.authUser);
+  const authUser = useSelector((state) => state.user.authUser) ?? {};
   // LOG
   console.log({authUser})
 
@@ -21,16 +22,22 @@ const Sidebar = () => {
   return (
     <div className="bg-slate-900 min-w-[25rem] h-full relative overflow-hidden rounded">
       <header className="bg-[#202C33] px-4 py-2">
-        <Avatar
-          className="cursor-pointer bg-white"
-          onClick={handleProfileOpening}
-        >
-          <AvatarImage src={authUser?.avatar} alt="avatar" />
-          <AvatarFallback className="bg-[#181C1F]">
-            {authUser?.userName?.slice(0, 2).toUpperCase()}
+        <Avatar className="cursor-pointer" onClick={handleProfileOpening}>
+          <AvatarImage src={authUser.avatar} alt="avatar" />
+          <AvatarFallback
+            // className={`bg-[${colorCodes.avatarDefault}] text-white`}
+            className={`bg-[#6A7175] text-white`}
+          >
+            {authUser?.userName?.slice(0, 2).toUpperCase() ?? "CN"}
           </AvatarFallback>
         </Avatar>
-        {isProfileOpen && <Profile setIsProfileOpen={setIsProfileOpen} />}
+
+        {isProfileOpen && (
+          <Profile
+            setIsProfileOpen={setIsProfileOpen}
+            isProfileOpen={isProfileOpen}
+          />
+        )}
       </header>
 
       <main className="flex px-4 py-2 bg-[#202C33] mt-1">

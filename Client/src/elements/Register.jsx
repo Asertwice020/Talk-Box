@@ -3,7 +3,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { userRoutes } from "../constants"
+import { userRoutes } from "../constants";
 
 import {
   Card,
@@ -31,79 +31,55 @@ const Register = () => {
     password: "",
   });
 
-  // useEffect(() => {
-  //   // Clear form data if submission is complete
-  //   if (!submitting) {
-  //     setUser({
-  //       fullName: "",
-  //       userName: "",
-  //       email: "",
-  //       avatar: undefined,
-  //       password: "",
-  //     });
-  //   }
-  // }, [submitting]);
-
   const onChangeHandler = (e) => {
     const { name, value, files } = e.target;
     setUser((prevUser) => ({
       ...prevUser,
-      [name]: name === "avatar" ? files[0] : value, // Update avatar separately
+      [name]: name === "avatar" ? files[0] : value, // UPDATE AVATAR SEPARATELY
     }));
   };
 
   const onSubmitHandler = async (e) => {
     e.preventDefault();
-
-    // Prevent multiple submissions
-    // if (submitting) return;
-    // setSubmitting(true); // Set form submission state to true
-
+    console.log("Submitting form...");
+    // FIXME: PREVENT MULTIPLE SUBMISSIONS
     try {
-      // LOG
-      // console.log(user);
-
       const formData = new FormData();
       formData.append("userName", user.userName);
       formData.append("fullName", user.fullName);
       formData.append("email", user.email);
-      formData.append("avatar", user.avatar); // Append the avatar file
+      formData.append("avatar", user.avatar);
       formData.append("password", user.password);
 
-      // LOG
-      // console.log({formData})
-
-      const res = await axios.post(userRoutes.register, formData, {
+      const options = {
         headers: {
           "Content-Type": "multipart/form-data",
         },
         withCredentials: true,
-      });
-      // LOG
-      console.log({fullResponse: res});
-
-      const authUser = res?.data?.data;
-
-      if (!authUser && !(authUser instanceof Object)) {
-        toast.error("Failed to show your Avatar!");
       }
 
-      if (res.data.success) {
-        toast.success(res.data.message);
+      const response = await axios.post(userRoutes.register, formData, options);
+      // LOG
+      console.log({fullResponse: response});
+
+      const authUser = response?.data?.data;
+
+      if (!authUser && !(authUser instanceof Object)) {
+        toast.error("Failed To Show Your Avatar!");
+      }
+
+      if (response.data.success) {
         dispatch(setAuthUser(authUser));
+        toast.success(response.data.message);
         navigate("/");
       }
     } catch (error) {
       if (error.response && error?.response?.status > 400) {
         toast.error(error?.response?.data?.message);
       } else {
-        console("Error:", error);
-        toast.error("An error occurred. Please try again later.");
+        toast.error("An Error Occurred. Try Again Later!!!.");
       }
-    } 
-    // finally {
-    //   setSubmitting(false); // Reset form submission state
-    // }
+    }
   };
   return (
     <div className="flex justify-center items-center h-screen">
@@ -180,14 +156,14 @@ const Register = () => {
                 <Label className="cursor-pointer" htmlFor="password">
                   Password
                 </Label>
-                  <Input
-                    type={"password"}
-                    onChange={onChangeHandler}
-                    value={user.password}
-                    id="password"
-                    name="password"
-                    placeholder="Password"
-                  />
+                <Input
+                  type={"password"}
+                  onChange={onChangeHandler}
+                  value={user.password}
+                  id="password"
+                  name="password"
+                  placeholder="Password"
+                />
               </div>
               {/* SUBMIT */}
               <Button type="submit" className="w-full">

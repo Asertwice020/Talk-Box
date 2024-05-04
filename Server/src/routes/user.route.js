@@ -14,6 +14,7 @@ import {
   getAllUsers,
   changeUserAvatar,
   removeUserAvatar,
+  changeCurrentUserDetails,
 } from "../controllers/user.controller.js";
 
 // --- UN-SECURED ROUTES ---
@@ -39,5 +40,8 @@ router
 
 // REMOVE USER AVATAR
 router.route("/remove-avatar").patch(verifyJWT, removeUserAvatar);
+
+// CHANGE USER DETAILS
+router.route("/change-user-details").patch(verifyJWT, changeCurrentUserDetails);
 
 export { router };
